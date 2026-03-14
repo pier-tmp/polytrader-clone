@@ -91,7 +91,7 @@ class Storage:
         cols = {r[1] for r in self.conn.execute("PRAGMA table_info(leaders)").fetchall()}
         migrations = [
             ("scan_count", "ALTER TABLE leaders ADD COLUMN scan_count INTEGER DEFAULT 0"),
-            ("preferred_ratio", "ALTER TABLE leaders ADD COLUMN preferred_ratio REAL DEFAULT 0"),
+            ("category", "ALTER TABLE leaders ADD COLUMN category TEXT DEFAULT ''"),
         ]
         for col, sql in migrations:
             if col not in cols:
@@ -105,12 +105,12 @@ class Storage:
         self.conn.execute("""
             INSERT OR REPLACE INTO leaders
             (wallet, name, win_rate, volume_usd, pnl_usd, total_trades,
-             crypto_ratio, preferred_ratio, last_scanned, scan_count, active)
+             crypto_ratio, category, last_scanned, scan_count, active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             leader.wallet, leader.name, leader.win_rate, leader.volume_usd,
             leader.pnl_usd, leader.total_trades, leader.crypto_ratio,
-            leader.preferred_ratio,
+            leader.category,
             leader.last_scanned.isoformat(), leader.scan_count, int(leader.active),
         ))
         self.conn.commit()
@@ -142,7 +142,7 @@ class Storage:
             pnl_usd=row["pnl_usd"],
             total_trades=row["total_trades"],
             crypto_ratio=row["crypto_ratio"],
-            preferred_ratio=row["preferred_ratio"] if "preferred_ratio" in keys else 0.0,
+            category=row["category"] if "category" in keys else "",
             last_scanned=datetime.fromisoformat(row["last_scanned"]),
             scan_count=row["scan_count"] if "scan_count" in keys else 0,
             active=bool(row["active"]),
