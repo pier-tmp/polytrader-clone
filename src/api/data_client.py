@@ -126,7 +126,7 @@ class DataClient:
         return self._get("/closed-positions", {
             "user": wallet.lower(),
             "limit": min(limit, 50),
-            "sortBy": "REALIZEDPNL",
+            "sortBy": "TIMESTAMP",
             "sortDirection": "DESC",
         })
 
