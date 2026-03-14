@@ -36,7 +36,6 @@ class Storage:
                 total_trades INTEGER DEFAULT 0,
                 crypto_ratio REAL DEFAULT 0,
                 last_scanned TEXT,
-                scan_count INTEGER DEFAULT 0,
                 active INTEGER DEFAULT 1
             );
 
@@ -90,7 +89,6 @@ class Storage:
         """Add columns that may not exist in older databases."""
         cols = {r[1] for r in self.conn.execute("PRAGMA table_info(leaders)").fetchall()}
         migrations = [
-            ("scan_count", "ALTER TABLE leaders ADD COLUMN scan_count INTEGER DEFAULT 0"),
             ("category", "ALTER TABLE leaders ADD COLUMN category TEXT DEFAULT ''"),
         ]
         for col, sql in migrations:
@@ -105,22 +103,15 @@ class Storage:
         self.conn.execute("""
             INSERT OR REPLACE INTO leaders
             (wallet, name, win_rate, volume_usd, pnl_usd, total_trades,
-             crypto_ratio, category, last_scanned, scan_count, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             crypto_ratio, category, last_scanned, active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             leader.wallet, leader.name, leader.win_rate, leader.volume_usd,
             leader.pnl_usd, leader.total_trades, leader.crypto_ratio,
             leader.category,
-            leader.last_scanned.isoformat(), leader.scan_count, int(leader.active),
+            leader.last_scanned.isoformat(), int(leader.active),
         ))
         self.conn.commit()
-
-    def get_leader_scan_count(self, wallet: str) -> int:
-        """Get the current scan_count for a leader (0 if not found)."""
-        row = self.conn.execute(
-            "SELECT scan_count FROM leaders WHERE wallet = ?", (wallet,)
-        ).fetchone()
-        return row["scan_count"] if row else 0
 
     def get_active_leaders(self) -> list[Leader]:
         rows = self.conn.execute(
@@ -144,7 +135,6 @@ class Storage:
             crypto_ratio=row["crypto_ratio"],
             category=row["category"] if "category" in keys else "",
             last_scanned=datetime.fromisoformat(row["last_scanned"]),
-            scan_count=row["scan_count"] if "scan_count" in keys else 0,
             active=bool(row["active"]),
         )
 

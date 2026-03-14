@@ -54,7 +54,7 @@ def main():
     notifier = TelegramNotifier()
 
     guard_chain = GuardChain(clob, db)
-    trade_engine = TradeEngine(clob, db, guard_chain, data_client=data)
+    trade_engine = TradeEngine(clob, db, guard_chain)
     portfolio = PortfolioManager(clob, db, trade_engine.engine)
     scanner = LeaderboardScanner(data, gamma, db)
     monitor = TradeMonitor(data, gamma, db)

@@ -29,7 +29,6 @@ class TradeEngine:
         clob: ClobClient,
         storage: Storage,
         guard_chain: GuardChain,
-        data_client=None,
     ):
         self.clob = clob
         self.db = storage
@@ -37,7 +36,7 @@ class TradeEngine:
         self.is_paper = config.TRADING_MODE == "paper"
 
         if self.is_paper:
-            self.engine = PaperEngine(clob, storage, data_client=data_client)
+            self.engine = PaperEngine(clob, storage)
             log.info("Trade engine initialized in PAPER mode (bankroll: $%.0f)", config.PAPER_BANKROLL)
         else:
             self.engine = LiveEngine(clob, storage)

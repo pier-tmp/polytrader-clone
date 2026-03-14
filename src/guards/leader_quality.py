@@ -30,10 +30,6 @@ def check_leader_quality(signal: TradeSignal, storage: Storage) -> str:
     if leader.win_rate < config.MIN_WIN_RATE:
         return f"leader_low_wr ({leader.win_rate:.1f}% < {config.MIN_WIN_RATE}%)"
 
-    # 2b. Leader must have appeared in enough consecutive scans
-    if leader.scan_count < config.MIN_SCAN_COUNT:
-        return f"leader_new ({leader.scan_count} scans < {config.MIN_SCAN_COUNT} required)"
-
     # 3. Scan not too stale (allow 2x scan interval before warning)
     max_age = timedelta(hours=config.SCAN_INTERVAL_HOURS * 2)
     if datetime.now(timezone.utc) - leader.last_scanned > max_age:

@@ -57,22 +57,12 @@ MAX_LEADERS = _int("MAX_LEADERS", 10)
 POLL_INTERVAL_SECONDS = _int("POLL_INTERVAL_SECONDS", 30)
 
 # ── Guards ────────────────────────────────────────────────
+COINFLIP_BLOCK = _bool(os.getenv("COINFLIP_BLOCK", "true"))
+SPORTS_AWARE = _bool(os.getenv("SPORTS_AWARE", "true"))
 MIN_MARKET_LIQUIDITY = _float("MIN_MARKET_LIQUIDITY", 5000.0)
 MAX_SPREAD_PERCENT = _float("MAX_SPREAD_PERCENT", 10.0)
 MIN_ODDS = _float("MIN_ODDS", 0.05)
 MAX_ODDS = _float("MAX_ODDS", 0.95)
-
-# ── Price Filter ──────────────────────────────────────
-MIN_AVG_PRICE = _float("MIN_AVG_PRICE", 0.005)   # 0.5¢
-MAX_AVG_PRICE = _float("MAX_AVG_PRICE", 0.40)    # 40¢
-PRICE_FILTER_ENABLED = _bool(os.getenv("PRICE_FILTER_ENABLED", "true"))
-
-# ── Whale Sizing ─────────────────────────────────────
-WHALE_SIZING_ENABLED = _bool(os.getenv("WHALE_SIZING_ENABLED", "true"))
-WHALE_SIZING_MAX_PCT = _float("WHALE_SIZING_MAX_PCT", 20.0)  # cap at 20% of bankroll
-
-# ── Leader Scan Persistence ──────────────────────────
-MIN_SCAN_COUNT = _int("MIN_SCAN_COUNT", 5)  # min consecutive scans to be trusted
 
 # ── Portfolio ─────────────────────────────────────────────
 TRAILING_STOP_PERCENT = _float("TRAILING_STOP_PERCENT", 15.0)

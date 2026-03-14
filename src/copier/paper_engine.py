@@ -19,10 +19,9 @@ class PaperEngine:
     and recording virtual trades in the database.
     """
 
-    def __init__(self, clob: ClobClient, storage: Storage, data_client=None):
+    def __init__(self, clob: ClobClient, storage: Storage):
         self.clob = clob
         self.db = storage
-        self.data = data_client
         self._bankroll = config.PAPER_BANKROLL
 
     @property
@@ -41,9 +40,9 @@ class PaperEngine:
         2. Estimate fill price from real orderbook
         3. Record paper trade and open position
         """
-        # Calculate size — proportional to whale's allocation if enabled
+        # Calculate size
         available = self.bankroll
-        trade_budget = self._calculate_bet_amount(signal, available)
+        trade_budget = available * (config.BET_SIZE_PERCENT / 100.0)
 
         if trade_budget < 1.0:
             log.warning("Paper bankroll too low: $%.2f", available)
@@ -99,30 +98,6 @@ class PaperEngine:
             signal.leader.name or signal.leader.wallet[:10],
         )
         return position
-
-    def _calculate_bet_amount(self, signal: TradeSignal, available: float) -> float:
-        """
-        Calculate bet size. If whale sizing is enabled, replicate the whale's
-        portfolio allocation percentage. Otherwise fall back to fixed %.
-        """
-        if config.WHALE_SIZING_ENABLED and self.data:
-            try:
-                portfolio = self.data.get_portfolio_value(signal.leader.wallet)
-                whale_total = float(portfolio.get("value", portfolio.get("totalValue", 0)))
-                if whale_total > 0:
-                    whale_pct = signal.size_usd / whale_total
-                    amount = available * whale_pct
-                    max_cap = available * (config.WHALE_SIZING_MAX_PCT / 100.0)
-                    amount = max(1.0, min(amount, max_cap))
-                    log.debug(
-                        "Whale sizing: whale %.1f%% of $%.0f → our $%.2f",
-                        whale_pct * 100, whale_total, amount,
-                    )
-                    return amount
-            except Exception as e:
-                log.warning("Whale sizing failed, using fixed %%: %s", e)
-
-        return available * (config.BET_SIZE_PERCENT / 100.0)
 
     def execute_sell(self, position: Position, reason: str = "leader_exit") -> float:
         """
