@@ -23,6 +23,7 @@ class LeaderboardScanner:
     - Win rate >= MIN_WIN_RATE (default 55%)
     - Volume >= MIN_VOLUME_USD (default $5K)
     - Crypto ratio <= MAX_CRYPTO_RATIO (default 40%)
+    - Preferred category ratio >= MIN_PREFERRED_RATIO (if PREFERRED_CATEGORIES set)
     - Max MAX_LEADERS selected (default 10)
     """
 
@@ -63,25 +64,18 @@ class LeaderboardScanner:
             leader = self._evaluate_candidate(wallet, entry)
             if not leader:
                 continue
+            label = leader.name or leader.wallet[:10]
+            pref_str = f", Pref: {leader.preferred_ratio*100:.0f}%" if config.PREFERRED_CATEGORIES else ""
+            stats = (
+                "WR: %.1f%%, Vol: $%.0f, PnL: $%.0f, Crypto: %.0f%%%s"
+                % (leader.win_rate, leader.volume_usd, leader.pnl_usd,
+                   leader.crypto_ratio * 100, pref_str)
+            )
             if self._passes_filters(leader):
                 candidates.append(leader)
-                log.info(
-                    "  ✓ %s — WR: %.1f%%, Vol: $%.0f, PnL: $%.0f, Crypto: %.0f%%",
-                    leader.name or leader.wallet[:10],
-                    leader.win_rate,
-                    leader.volume_usd,
-                    leader.pnl_usd,
-                    leader.crypto_ratio * 100,
-                )
+                log.info("  ✓ %s — %s", label, stats)
             else:
-                log.info(
-                    "  ✗ %s — WR: %.1f%%, Vol: $%.0f, PnL: $%.0f, Crypto: %.0f%%",
-                    leader.name or leader.wallet[:10],
-                    leader.win_rate,
-                    leader.volume_usd,
-                    leader.pnl_usd,
-                    leader.crypto_ratio * 100,
-                )
+                log.info("  ✗ %s — %s", label, stats)
 
             if len(candidates) >= config.MAX_LEADERS:
                 break
@@ -118,11 +112,22 @@ class LeaderboardScanner:
             pnl = float(entry.get("pnl", entry.get("profit", 0)))
             total_trades = int(entry.get("numTrades", entry.get("markets_traded", 0)))
 
-            # Crypto ratio (expensive — calls Gamma per trade)
-            # Only compute for candidates that pass other filters first
+            # Category ratios (expensive — calls Gamma per trade, cached per cid)
+            # Only compute for candidates that pass basic filters first
             crypto_ratio = 0.0
+            preferred_ratio = 0.0
             if win_rate >= config.MIN_WIN_RATE and volume >= config.MIN_VOLUME_USD:
-                crypto_ratio = self.data.compute_crypto_ratio(wallet, self.gamma)
+                ratios = self.data.compute_category_ratios(wallet, self.gamma)
+                crypto_ratio = ratios["crypto_ratio"]
+                # Compute preferred category ratio if configured
+                if config.PREFERRED_CATEGORIES:
+                    cat_counts = ratios["category_counts"]
+                    total_cat = sum(cat_counts.values()) or 1
+                    preferred_count = sum(
+                        v for k, v in cat_counts.items()
+                        if k in config.PREFERRED_CATEGORIES
+                    )
+                    preferred_ratio = preferred_count / total_cat
 
             return Leader(
                 wallet=wallet,
@@ -132,6 +137,7 @@ class LeaderboardScanner:
                 pnl_usd=pnl,
                 total_trades=total_trades,
                 crypto_ratio=crypto_ratio,
+                preferred_ratio=preferred_ratio,
                 last_scanned=datetime.now(timezone.utc),
             )
         except Exception as e:
@@ -148,5 +154,12 @@ class LeaderboardScanner:
             return False
         if leader.crypto_ratio > config.MAX_CRYPTO_RATIO:
             log.info("    filter: high crypto ratio: %.0f%% (max %.0f%%)", leader.crypto_ratio * 100, config.MAX_CRYPTO_RATIO * 100)
+            return False
+        if config.PREFERRED_CATEGORIES and leader.preferred_ratio < config.MIN_PREFERRED_RATIO:
+            log.info(
+                "    filter: low preferred ratio: %.0f%% (min %.0f%%, want: %s)",
+                leader.preferred_ratio * 100, config.MIN_PREFERRED_RATIO * 100,
+                ",".join(config.PREFERRED_CATEGORIES),
+            )
             return False
         return True

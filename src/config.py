@@ -45,6 +45,12 @@ SCAN_INTERVAL_HOURS = _int("SCAN_INTERVAL_HOURS", 24)
 MIN_WIN_RATE = _float("MIN_WIN_RATE", 55.0)
 MIN_VOLUME_USD = _float("MIN_VOLUME_USD", 5000.0)
 MAX_CRYPTO_RATIO = _float("MAX_CRYPTO_RATIO", 0.4)
+PREFERRED_CATEGORIES = [
+    c.strip().lower()
+    for c in os.getenv("PREFERRED_CATEGORIES", "").split(",")
+    if c.strip()
+]  # e.g. "politics,economics,science" — empty means no category filter
+MIN_PREFERRED_RATIO = _float("MIN_PREFERRED_RATIO", 0.3)  # at least 30% in preferred categories
 MAX_LEADERS = _int("MAX_LEADERS", 10)
 
 # ── Monitor ───────────────────────────────────────────────

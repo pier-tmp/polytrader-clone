@@ -88,12 +88,16 @@ class Storage:
 
     def _migrate(self):
         """Add columns that may not exist in older databases."""
-        try:
-            self.conn.execute("SELECT scan_count FROM leaders LIMIT 1")
-        except sqlite3.OperationalError:
-            self.conn.execute("ALTER TABLE leaders ADD COLUMN scan_count INTEGER DEFAULT 0")
-            self.conn.commit()
-            log.info("Migrated leaders table: added scan_count column")
+        cols = {r[1] for r in self.conn.execute("PRAGMA table_info(leaders)").fetchall()}
+        migrations = [
+            ("scan_count", "ALTER TABLE leaders ADD COLUMN scan_count INTEGER DEFAULT 0"),
+            ("preferred_ratio", "ALTER TABLE leaders ADD COLUMN preferred_ratio REAL DEFAULT 0"),
+        ]
+        for col, sql in migrations:
+            if col not in cols:
+                self.conn.execute(sql)
+                log.info("Migrated leaders table: added %s column", col)
+        self.conn.commit()
 
     # ── Leaders ───────────────────────────────────────────
 
@@ -101,11 +105,12 @@ class Storage:
         self.conn.execute("""
             INSERT OR REPLACE INTO leaders
             (wallet, name, win_rate, volume_usd, pnl_usd, total_trades,
-             crypto_ratio, last_scanned, scan_count, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             crypto_ratio, preferred_ratio, last_scanned, scan_count, active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             leader.wallet, leader.name, leader.win_rate, leader.volume_usd,
             leader.pnl_usd, leader.total_trades, leader.crypto_ratio,
+            leader.preferred_ratio,
             leader.last_scanned.isoformat(), leader.scan_count, int(leader.active),
         ))
         self.conn.commit()
@@ -128,6 +133,7 @@ class Storage:
         self.conn.commit()
 
     def _row_to_leader(self, row) -> Leader:
+        keys = row.keys()
         return Leader(
             wallet=row["wallet"],
             name=row["name"],
@@ -136,8 +142,9 @@ class Storage:
             pnl_usd=row["pnl_usd"],
             total_trades=row["total_trades"],
             crypto_ratio=row["crypto_ratio"],
+            preferred_ratio=row["preferred_ratio"] if "preferred_ratio" in keys else 0.0,
             last_scanned=datetime.fromisoformat(row["last_scanned"]),
-            scan_count=row["scan_count"] if "scan_count" in row.keys() else 0,
+            scan_count=row["scan_count"] if "scan_count" in keys else 0,
             active=bool(row["active"]),
         )
 

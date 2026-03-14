@@ -172,21 +172,48 @@ class DataClient:
         wins = sum(1 for p in closed if float(p.get("realizedPnl", p.get("cashPnl", p.get("pnl", 0)))) > 0)
         return (wins / len(closed)) * 100.0
 
+    def compute_category_ratios(self, wallet: str, gamma_client=None) -> dict:
+        """
+        Compute category breakdown for a wallet's recent trades in a single pass.
+        Returns dict with keys: crypto_ratio, category_counts.
+        Caches Gamma lookups per condition_id to avoid duplicate API calls.
+        """
+        result = {"crypto_ratio": 0.0, "category_counts": {}}
+        if not gamma_client:
+            return result
+        trades = self.get_activity(wallet, limit=200)
+        if not trades:
+            return result
+        crypto_count = 0
+        category_counts = {}
+        seen_cids = {}
+        for trade in trades:
+            cid = trade.get("conditionId", "")
+            if not cid:
+                continue
+            if cid in seen_cids:
+                market = seen_cids[cid]
+            else:
+                market = gamma_client.get_market(cid)
+                seen_cids[cid] = market
+            if not market:
+                continue
+            if gamma_client.is_crypto_market(market):
+                crypto_count += 1
+            tags = market.get("tags", [])
+            for tag in tags:
+                slug = tag.get("slug", "") if isinstance(tag, dict) else str(tag)
+                slug = slug.lower()
+                if slug:
+                    category_counts[slug] = category_counts.get(slug, 0) + 1
+        total = len(trades)
+        result["crypto_ratio"] = crypto_count / total if total else 0.0
+        result["category_counts"] = category_counts
+        return result
+
     def compute_crypto_ratio(self, wallet: str, gamma_client=None) -> float:
         """
         Ratio of crypto-tagged trades to total trades.
         Requires a GammaClient to check market tags.
         """
-        if not gamma_client:
-            return 0.0
-        trades = self.get_activity(wallet, limit=200)
-        if not trades:
-            return 0.0
-        crypto_count = 0
-        for trade in trades:
-            cid = trade.get("conditionId", "")
-            if cid:
-                market = gamma_client.get_market(cid)
-                if market and gamma_client.is_crypto_market(market):
-                    crypto_count += 1
-        return crypto_count / len(trades)
+        return self.compute_category_ratios(wallet, gamma_client)["crypto_ratio"]

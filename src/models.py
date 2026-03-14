@@ -19,6 +19,7 @@ class Leader:
     pnl_usd: float = 0.0
     total_trades: int = 0
     crypto_ratio: float = 0.0
+    preferred_ratio: float = 0.0  # ratio of trades in preferred categories
     last_scanned: datetime = field(default_factory=_utcnow)
     scan_count: int = 0  # consecutive scans this leader has appeared in
     active: bool = True
