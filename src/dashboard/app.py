@@ -160,11 +160,13 @@ elif page == "Leaders":
             rows.append({
                 "Name": l.name or l.wallet[:12],
                 "Wallet": l.wallet[:14] + "...",
+                "Category": l.category or "OVERALL",
                 "Win Rate": f"{l.win_rate:.1f}%",
                 "Volume": f"${l.volume_usd:,.0f}",
                 "P&L": f"${l.pnl_usd:+,.0f}",
                 "Trades": l.total_trades,
                 "Crypto %": f"{l.crypto_ratio * 100:.0f}%",
+                "Scans": l.scan_count,
                 "Last scan": l.last_scanned.strftime("%m/%d %H:%M"),
             })
         st.dataframe(rows, use_container_width=True)
@@ -183,10 +185,15 @@ elif page == "Settings":
         st.text(f"Live bankroll: ${config.LIVE_BANKROLL}")
 
         st.subheader("Guards")
-        st.text(f"Coinflip block: {config.COINFLIP_BLOCK}")
-        st.text(f"Sports aware: {config.SPORTS_AWARE}")
+        st.text(f"Price filter: {config.PRICE_FILTER_ENABLED}")
+        st.text(f"Min price: {config.MIN_AVG_PRICE}")
+        st.text(f"Max price: {config.MAX_AVG_PRICE}")
         st.text(f"Min liquidity: ${config.MIN_MARKET_LIQUIDITY}")
         st.text(f"Max spread: {config.MAX_SPREAD_PERCENT}%")
+
+        st.subheader("Whale Sizing")
+        st.text(f"Enabled: {config.WHALE_SIZING_ENABLED}")
+        st.text(f"Max allocation: {config.WHALE_SIZING_MAX_PCT}%")
 
     with col2:
         st.subheader("Leaderboard")
@@ -195,6 +202,10 @@ elif page == "Settings":
         st.text(f"Min volume: ${config.MIN_VOLUME_USD}")
         st.text(f"Max crypto ratio: {config.MAX_CRYPTO_RATIO * 100}%")
         st.text(f"Max leaders: {config.MAX_LEADERS}")
+        cats = ", ".join(config.PREFERRED_CATEGORIES) if config.PREFERRED_CATEGORIES else "OVERALL"
+        st.text(f"Categories: {cats}")
+        st.text(f"Leaders per category: {config.LEADERS_PER_CATEGORY}")
+        st.text(f"Min scan count: {config.MIN_SCAN_COUNT}")
 
         st.subheader("Portfolio")
         st.text(f"Trailing stop: {config.TRAILING_STOP_PERCENT}%")
