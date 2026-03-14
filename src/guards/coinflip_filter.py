@@ -18,6 +18,29 @@ COINFLIP_PATTERNS = [
 
 CRYPTO_TAGS = {"crypto", "crypto-prices", "btc", "eth", "sol", "bitcoin", "ethereum"}
 
+# Sports single-match markets — too volatile and short-term for copy trading
+SPORTS_MATCH_PATTERNS = [
+    "o/u ", "over/under", "spread:", ": o/u",
+    "moneyline", "first half", "halftime",
+    "total goals", "both teams", " vs. ", " vs ",
+    "win on ", "win the match",
+    "total points", "total runs", "total touchdowns",
+    "point spread", "run line", "puck line",
+]
+
+
+def is_sports_match_entry(signal: TradeSignal) -> bool:
+    """Returns True if this is a single-match sports market that should be blocked on entry."""
+    if signal.side != "BUY":
+        return False
+
+    title = signal.market.question.lower()
+    if any(p in title for p in SPORTS_MATCH_PATTERNS):
+        log.debug("Sports match blocked (title): %s", title[:60])
+        return True
+
+    return False
+
 
 def is_coinflip(signal: TradeSignal) -> bool:
     """Returns True if the market is a coinflip that should be blocked."""

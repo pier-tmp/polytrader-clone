@@ -20,6 +20,7 @@ class Leader:
     total_trades: int = 0
     crypto_ratio: float = 0.0
     last_scanned: datetime = field(default_factory=_utcnow)
+    scan_count: int = 0  # consecutive scans this leader has appeared in
     active: bool = True
 
 

@@ -90,9 +90,11 @@ class LeaderboardScanner:
         candidates.sort(key=lambda l: l.pnl_usd, reverse=True)
         selected = candidates[: config.MAX_LEADERS]
 
-        # Update database
+        # Update database — increment scan_count for returning leaders, reset for new
         self.db.deactivate_all_leaders()
         for leader in selected:
+            prev_count = self.db.get_leader_scan_count(leader.wallet)
+            leader.scan_count = prev_count + 1
             leader.active = True
             self.db.save_leader(leader)
 

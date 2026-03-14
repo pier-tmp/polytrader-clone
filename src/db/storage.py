@@ -36,6 +36,7 @@ class Storage:
                 total_trades INTEGER DEFAULT 0,
                 crypto_ratio REAL DEFAULT 0,
                 last_scanned TEXT,
+                scan_count INTEGER DEFAULT 0,
                 active INTEGER DEFAULT 1
             );
 
@@ -83,6 +84,16 @@ class Storage:
             CREATE INDEX IF NOT EXISTS idx_trades_ts ON trades(timestamp);
         """)
         self.conn.commit()
+        self._migrate()
+
+    def _migrate(self):
+        """Add columns that may not exist in older databases."""
+        try:
+            self.conn.execute("SELECT scan_count FROM leaders LIMIT 1")
+        except sqlite3.OperationalError:
+            self.conn.execute("ALTER TABLE leaders ADD COLUMN scan_count INTEGER DEFAULT 0")
+            self.conn.commit()
+            log.info("Migrated leaders table: added scan_count column")
 
     # ── Leaders ───────────────────────────────────────────
 
@@ -90,14 +101,21 @@ class Storage:
         self.conn.execute("""
             INSERT OR REPLACE INTO leaders
             (wallet, name, win_rate, volume_usd, pnl_usd, total_trades,
-             crypto_ratio, last_scanned, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             crypto_ratio, last_scanned, scan_count, active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             leader.wallet, leader.name, leader.win_rate, leader.volume_usd,
             leader.pnl_usd, leader.total_trades, leader.crypto_ratio,
-            leader.last_scanned.isoformat(), int(leader.active),
+            leader.last_scanned.isoformat(), leader.scan_count, int(leader.active),
         ))
         self.conn.commit()
+
+    def get_leader_scan_count(self, wallet: str) -> int:
+        """Get the current scan_count for a leader (0 if not found)."""
+        row = self.conn.execute(
+            "SELECT scan_count FROM leaders WHERE wallet = ?", (wallet,)
+        ).fetchone()
+        return row["scan_count"] if row else 0
 
     def get_active_leaders(self) -> list[Leader]:
         rows = self.conn.execute(
@@ -119,6 +137,7 @@ class Storage:
             total_trades=row["total_trades"],
             crypto_ratio=row["crypto_ratio"],
             last_scanned=datetime.fromisoformat(row["last_scanned"]),
+            scan_count=row["scan_count"] if "scan_count" in row.keys() else 0,
             active=bool(row["active"]),
         )
 

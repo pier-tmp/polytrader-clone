@@ -8,10 +8,11 @@ from src import config
 from src.models import TradeSignal
 from src.api.clob_client import ClobClient
 from src.db.storage import Storage
-from src.guards.coinflip_filter import is_coinflip
+from src.guards.coinflip_filter import is_coinflip, is_sports_match_entry
 from src.guards.sports_aware import should_block_sports_sell, is_sports_trailing_stop_exempt
 from src.guards.market_quality import check_market_quality
 from src.guards.leader_quality import check_leader_quality
+from src.guards.price_filter import check_price_filter
 
 log = logging.getLogger(__name__)
 
@@ -39,23 +40,33 @@ class GuardChain:
         if config.COINFLIP_BLOCK and is_coinflip(signal):
             return False, "coinflip_blocked", {}
 
+        # 1b. Sports single-match entry filter
+        if config.SPORTS_AWARE and is_sports_match_entry(signal):
+            return False, "sports_match_blocked", {}
+
         # 2. Sports-aware logic
         if config.SPORTS_AWARE:
             if should_block_sports_sell(signal):
                 return False, "sports_sell_blocked", {}
             metadata["sports_exempt_trailing_stop"] = is_sports_trailing_stop_exempt(signal)
 
-        # 3. Leader quality
+        # 3. Price filter (optional)
+        if config.PRICE_FILTER_ENABLED and signal.side == "BUY":
+            price_reason = check_price_filter(signal)
+            if price_reason:
+                return False, price_reason, {}
+
+        # 4. Leader quality
         leader_reason = check_leader_quality(signal, self.storage)
         if leader_reason:
             return False, leader_reason, {}
 
-        # 4. Market quality
+        # 5. Market quality
         market_reason = check_market_quality(signal, self.clob)
         if market_reason:
             return False, market_reason, {}
 
-        # 5. Event overlap — don't bet both sides
+        # 6. Event overlap — don't bet both sides
         open_positions = self.storage.get_open_positions(
             is_paper=(config.TRADING_MODE == "paper")
         )

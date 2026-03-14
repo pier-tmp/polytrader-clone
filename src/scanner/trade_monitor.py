@@ -129,6 +129,29 @@ class TradeMonitor:
                 except (ValueError, TypeError):
                     pass
 
+            # Fallback chain for liquidity — Gamma API may use different field names
+            raw_liq = (
+                market_data.get("liquidity")
+                or market_data.get("liquidityNum")
+                or market_data.get("liquidityClob")
+                or 0
+            )
+            raw_vol = (
+                market_data.get("volume24hr")
+                or market_data.get("volume24hrClob")
+                or 0
+            )
+
+            try:
+                liquidity_val = float(raw_liq)
+            except (ValueError, TypeError):
+                liquidity_val = 0.0
+
+            try:
+                volume_val = float(raw_vol)
+            except (ValueError, TypeError):
+                volume_val = 0.0
+
             market = Market(
                 condition_id=condition_id,
                 token_id=token_id,
@@ -139,8 +162,8 @@ class TradeMonitor:
                     for t in tags
                 ],
                 end_date=end_date,
-                volume_24h=float(market_data.get("volume24hr", 0)),
-                liquidity=float(market_data.get("liquidity", 0)),
+                volume_24h=volume_val,
+                liquidity=liquidity_val,
                 outcome=trade.get("outcome", ""),
             )
 
