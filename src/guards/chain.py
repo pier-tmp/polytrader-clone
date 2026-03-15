@@ -50,15 +50,16 @@ class GuardChain:
             return False, market_reason, {}
 
         # 4. Duplicate / overlap checks
-        open_positions = self.storage.get_open_positions(
-            is_paper=(config.TRADING_MODE == "paper")
-        )
-        for pos in open_positions:
-            if (pos.token_id == signal.token_id and
-                    pos.leader_wallet == signal.leader.wallet):
-                return False, "already_in_position", {}
-            if pos.market_slug == signal.market.slug and pos.side != signal.side:
-                return False, "event_overlap (opposite side open)", {}
+        if config.OVERLAP_GUARD:
+            open_positions = self.storage.get_open_positions(
+                is_paper=(config.TRADING_MODE == "paper")
+            )
+            for pos in open_positions:
+                if (pos.token_id == signal.token_id and
+                        pos.leader_wallet == signal.leader.wallet):
+                    return False, "already_in_position", {}
+                if pos.market_slug == signal.market.slug and pos.side != signal.side:
+                    return False, "event_overlap (opposite side open)", {}
 
         log.info(
             "✓ All guards passed: %s %s on %s",

@@ -17,19 +17,20 @@ def check_market_quality(signal: TradeSignal, clob: ClobClient) -> str:
     or the reason string if blocked.
     """
     # 1. Minimum liquidity
-    if signal.market.liquidity < config.MIN_MARKET_LIQUIDITY:
+    if config.LIQUIDITY_GUARD and signal.market.liquidity < config.MIN_MARKET_LIQUIDITY:
         return f"low_liquidity ({signal.market.liquidity:.0f} < {config.MIN_MARKET_LIQUIDITY})"
 
     # 2. Price bounds — avoid extreme odds
-    price = signal.price
-    if price < config.MIN_ODDS:
-        return f"price_too_low ({price:.3f} < {config.MIN_ODDS})"
-    if price > config.MAX_ODDS:
-        return f"price_too_high ({price:.3f} > {config.MAX_ODDS})"
+    if config.PRICE_BOUNDS_GUARD:
+        price = signal.price
+        if price < config.MIN_ODDS:
+            return f"price_too_low ({price:.3f} < {config.MIN_ODDS})"
+        if price > config.MAX_ODDS:
+            return f"price_too_high ({price:.3f} > {config.MAX_ODDS})"
 
     # 3. Spread check — wide spread = bad fill
     token_id = signal.token_id or signal.market.token_id
-    if token_id:
+    if config.SPREAD_GUARD and token_id:
         try:
             spread_data = clob.get_spread(token_id)
             bid = float(spread_data.get("bid", 0))
@@ -42,7 +43,7 @@ def check_market_quality(signal: TradeSignal, clob: ClobClient) -> str:
             log.warning("Spread check failed for %s: %s", token_id[:12], e)
 
     # 4. Book depth — ensure enough liquidity to fill our order
-    if token_id:
+    if config.BOOK_DEPTH_GUARD and token_id:
         try:
             depth = clob.get_book_depth(token_id, signal.side)
             if depth < signal.size_usd * 2:
